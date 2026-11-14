@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Product Catalog &mdash; InventoryPro{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('products.list') }}" class="text-muted">Products</a></li>
+<li class="breadcrumb-item active text-dark">Catalog Ledger</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 animate-fade-up">
+    <div>
+        <h1 class="h2 fw-bold mb-1 text-heading">
+            <i class="fas fa-boxes-stacked me-2 text-teal"></i>Product Catalog
+        </h1>
+        <p class="text-muted mb-0 small">Comprehensive database of stock items, pricing tiers, and inventory balance.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary rounded-pill px-3 py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+            <i class="fas fa-folder-plus me-1 text-primary"></i>Add Category
+        </button>
+        {% if current_user.is_authenticated and current_user.role in ['admin', 'manager'] %}
+        <a href="{{ url_for('products.add') }}" class="btn text-white fw-semibold rounded-pill px-3 py-2 btn-shimmer" style="background: linear-gradient(135deg, #00897b, #0d9488); box-shadow: 0 4px 14px rgba(0, 137, 123, 0.35);">
+            <i class="fas fa-plus me-1"></i>New Product
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Search & Category Filters Bar -->
+<div class="card-modern mb-4 p-3 animate-fade-up delay-1">
+    <form method="GET" action="{{ url_for('products.list') }}" class="row g-2 align-items-center">
+        <div class="col-md-5">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0 text-muted ps-3">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input type="text" name="search" id="liveSearchInput" class="form-control border-start-0 ps-2" 
+                       placeholder="Instant search by name, SKU..." 
+                       value="{{ search or '' }}" 
+                       data-table-search="productsTable">
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0 text-muted ps-3">
+                    <i class="fas fa-layer-group"></i>
+                </span>
+                <select name="category" class="form-select border-start-0" onchange="this.form.submit()">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if category_filter == cat.id|string %}selected{% endif %}>
+                        {{ cat.name }} ({{ cat.products|length if cat.products else 0 }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-dark w-100 rounded-pill fw-semibold">
+                <i class="fas fa-filter me-1"></i>Filter
+            </button>
+            {% if search or category_filter %}
+            <a href="{{ url_for('products.list') }}" class="btn btn-outline-secondary rounded-pill px-3" title="Clear Filters">
+                <i class="fas fa-rotate-left"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Products Table Card -->
+<div class="card-modern animate-fade-up delay-2">
+    <div class="card-modern-header">
+        <div>
+            <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-table-list me-2 text-primary"></i>Product Inventory Ledger</h6>
+            <small class="text-muted">Showing page {{ products.page if products.page is defined else 1 }} of {{ products.pages if products.pages is defined else 1 }}</small>
+        </div>
+        <span class="badge bg-light text-dark border px-3 py-1 rounded-pill small">
+            Total {{ products.total if products.total is defined else products|length }} Items
+        </span>
+    </div>
+    <div class="p-0 table-responsive">
+        <table class="table-luxury" id="productsTable">
+            <thead>
+                <tr>
+                    <th>SKU Code</th>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th class="text-end">Cost Price</th>
+                    <th class="text-end">Selling Price</th>
+                    <th class="text-center">Stock Level</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set prod_list = products.items if products.items is defined else products %}
+                {% if prod_list %}
+                    {% for product in prod_list %}
+                    <tr>
+                        <td>
+                            <span class="sku-badge" data-bs-toggle="tooltip" title="Click to copy SKU">
+                                <i class="far fa-copy text-muted fa-xs"></i>{{ product.sku }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ product.name }}</div>
+                            {% if product.description %}
+                            <small class="text-muted d-block text-truncate" style="max-width: 240px;">{{ product.description }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-secondary border px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
+                                <i class="fas fa-tag me-1 text-primary"></i>{{ product.category.name if product.category else 'General' }}
+                            </span>
+                        </td>
+                        <td class="text-end font-tabular text-muted">
+                            ₹{{ "%.2f"|format(product.cost_price) }}
+                        </td>
+                        <td class="text-end font-tabular fw-bold text-dark">
+                            ₹{{ "%.2f"|format(product.selling_price) }}
+                        </td>
+                        <td class="text-center font-tabular">
+                            <span class="fw-bold {{ 'text-danger' if product.quantity <= 0 else 'text-warning' if product.quantity <= product.low_stock_threshold else 'text-success' }}">
+                                {{ product.quantity }}
+                            </span>
+                            <small class="text-muted d-block" style="font-size:0.7rem;">Min: {{ product.low_stock_threshold }}</small>
+                        </td>
+                        <td>
+                            {% if product.quantity <= 0 %}
+                            <span class="badge-status badge-out-of-stock">
+                                <span class="status-dot"></span>Out of Stock
+                            </span>
+                            {% elif product.quantity <= product.low_stock_threshold %}
+                            <span class="badge-status badge-low-stock">
+                                <span class="status-dot"></span>Low Stock
+                            </span>
+                            {% else %}
+                            <span class="badge-status badge-in-stock">
+                                <span class="status-dot"></span>In Stock
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                {% if current_user.is_authenticated and current_user.role in ['admin', 'manager'] %}
+                                <a href="{{ url_for('products.edit', id=product.id) }}" class="btn btn-sm btn-outline-primary rounded-circle" style="width:32px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center;" title="Edit Product">
+                                    <i class="fas fa-pen fa-xs"></i>
+                                </a>
+                                {% endif %}
+                                {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                                <form action="{{ url_for('products.delete', id=product.id) }}" method="POST" class="d-inline"
+                                      onsubmit="return confirm('Archive product &quot;{{ product.name }}&quot;?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" style="width:32px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center;" title="Delete Product">
+                                        <i class="fas fa-trash fa-xs"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr class="no-filter">
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <div style="width:54px; height:54px; border-radius:50%; background:#f1f5f9; color:#64748b; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem; font-size:1.5rem;">
+                                <i class="fas fa-boxes-stacked"></i>
+                            </div>
+                            <h6 class="fw-bold text-dark mb-1">No Products Found</h6>
+                            <p class="small text-muted mb-3">No inventory items matched your filter parameters.</p>
+                            <a href="{{ url_for('products.add') }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                                <i class="fas fa-plus me-1"></i>Add New Product
+                            </a>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if products.pages is defined and products.pages > 1 %}
+    <div class="p-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Page {{ products.page }} of {{ products.pages }}</small>
+        <nav aria-label="Products pagination">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {% if not products.has_prev %}disabled{% endif %}">
+                    <a class="page-link rounded-circle me-1" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center;" href="{{ url_for('products.list', page=products.prev_num, search=search, category=category_filter) }}">
+                        <i class="fas fa-chevron-left fa-xs"></i>
+                    </a>
+                </li>
+                {% for page_num in products.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                    <li class="page-item {% if page_num == products.page %}active{% endif %}">
+                        <a class="page-link rounded-circle me-1" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; {% if page_num == products.page %}background:#0f172a; border-color:#0f172a; color:#fff;{% endif %}" href="{{ url_for('products.list', page=page_num, search=search, category=category_filter) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {% if not products.has_next %}disabled{% endif %}">
+                    <a class="page-link rounded-circle" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center;" href="{{ url_for('products.list', page=products.next_num, search=search, category=category_filter) }}">
+                        <i class="fas fa-chevron-right fa-xs"></i>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal: Add Category -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('products.add_category') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header-luxury">
+                    <h5 class="modal-title">
+                        <i class="fas fa-folder-plus text-info"></i>Create Catalog Category
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Category Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" required placeholder="e.g. Electronics, Perishables, Apparel">
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Description</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="Brief notes about products in this category..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light p-3">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dark rounded-pill px-4 fw-semibold">
+                        <i class="fas fa-check me-1"></i>Save Category
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

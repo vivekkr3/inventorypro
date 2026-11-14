@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Billing &amp; Transaction Ledger &mdash; InventoryPro{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('billing.list') }}" class="text-muted">Billing</a></li>
+<li class="breadcrumb-item active text-dark">Transaction Ledger</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 animate-fade-up">
+    <div>
+        <h1 class="h2 fw-bold mb-1 text-heading">
+            <i class="fas fa-receipt me-2 text-teal"></i>Invoices &amp; Transactions
+        </h1>
+        <p class="text-muted mb-0 small">Audit ledger of customer receipts, taxes collected, and POS transactions.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('billing.new') }}" class="btn text-white fw-semibold rounded-pill px-3 py-2 btn-shimmer" style="background: linear-gradient(135deg, #00897b, #0d9488); box-shadow: 0 4px 14px rgba(0, 137, 123, 0.35);">
+            <i class="fas fa-plus me-1"></i>New POS Invoice
+        </a>
+    </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="card-modern mb-4 p-3 animate-fade-up delay-1">
+    <form method="GET" action="{{ url_for('billing.list') }}" class="row g-2 align-items-center">
+        <div class="col-md-4">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0 text-muted ps-3"><i class="fas fa-search"></i></span>
+                <input type="text" class="form-control border-start-0 ps-2" placeholder="Instant search by Invoice # or Customer..." data-table-search="invoicesTable">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <input type="date" class="form-control form-control-sm" name="from_date" value="{{ request.args.get('from_date', '') }}" title="From Date">
+        </div>
+        <div class="col-md-3">
+            <input type="date" class="form-control form-control-sm" name="to_date" value="{{ request.args.get('to_date', '') }}" title="To Date">
+        </div>
+        <div class="col-md-2 d-flex gap-1">
+            <button type="submit" class="btn btn-dark btn-sm rounded-pill w-100 fw-semibold">
+                <i class="fas fa-filter me-1"></i>Filter
+            </button>
+            {% if request.args.get('from_date') or request.args.get('to_date') %}
+            <a href="{{ url_for('billing.list') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-2" title="Reset">
+                <i class="fas fa-rotate-left"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Invoices Ledger Card -->
+<div class="card-modern animate-fade-up delay-2">
+    <div class="card-modern-header">
+        <div>
+            <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-file-invoice me-2 text-primary"></i>Customer Invoices Ledger</h6>
+            <small class="text-muted">Chronological order of transactions</small>
+        </div>
+        <span class="badge bg-light text-dark border px-3 py-1 rounded-pill small">
+            {{ invoices.total if invoices.total is defined else (invoices|length) }} Invoices Recorded
+        </span>
+    </div>
+    <div class="p-0 table-responsive">
+        <table class="table-luxury" id="invoicesTable">
+            <thead>
+                <tr>
+                    <th>Invoice #</th>
+                    <th>Date &amp; Time</th>
+                    <th>Customer Name</th>
+                    <th class="text-center">Items</th>
+                    <th class="text-end">Grand Total</th>
+                    <th>Payment Mode</th>
+                    <th>Status</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set inv_list = invoices.items if invoices.items is defined else invoices %}
+                {% if inv_list %}
+                    {% for inv in inv_list %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('billing.invoice', id=inv.id) }}" class="fw-bold font-monospace text-primary text-decoration-none">
+                                {{ inv.invoice_number }}
+                            </a>
+                        </td>
+                        <td class="text-muted small">
+                            {{ inv.created_at.strftime('%d %b %Y, %I:%M %p') if inv.created_at else '' }}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width:28px; height:28px; border-radius:50%; background:#e0f2fe; color:#0284c7; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700;">
+                                    {{ (inv.customer.name[0] if inv.customer else 'W') | upper }}
+                                </div>
+                                <span class="fw-semibold text-dark">{{ inv.customer.name if inv.customer else 'Walk-in Retail' }}</span>
+                            </div>
+                        </td>
+                        <td class="text-center font-tabular">
+                            <span class="badge bg-light text-secondary border rounded-pill px-2 py-1">
+                                {{ inv.items|length }} item{{ 's' if inv.items|length != 1 else '' }}
+                            </span>
+                        </td>
+                        <td class="text-end font-tabular fw-bold text-dark fs-6">
+                            ₹{{ "%.2f"|format(inv.total_amount if inv.total_amount is defined else inv.total) }}
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-secondary border font-monospace text-uppercase" style="font-size:0.72rem;">
+                                {{ inv.payment_method or 'Cash' }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge-status badge-in-stock">
+                                <span class="status-dot"></span>
+                                {{ inv.status | capitalize }}
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('billing.invoice', id=inv.id) }}" class="btn btn-sm btn-outline-primary rounded-circle" style="width:32px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center;" title="View &amp; Print Tax Invoice">
+                                <i class="fas fa-print fa-xs"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr class="no-filter">
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="fas fa-receipt fa-2x mb-2 d-block opacity-25"></i>
+                            No invoices generated yet. Create your first POS bill!
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if invoices.pages is defined and invoices.pages > 1 %}
+    <div class="p-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Page {{ invoices.page }} of {{ invoices.pages }}</small>
+        <nav aria-label="Invoices pagination">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {% if not invoices.has_prev %}disabled{% endif %}">
+                    <a class="page-link rounded-circle me-1" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center;" href="{{ url_for('billing.list', page=invoices.prev_num, from_date=request.args.get('from_date', ''), to_date=request.args.get('to_date', '')) }}">
+                        <i class="fas fa-chevron-left fa-xs"></i>
+                    </a>
+                </li>
+                {% for page_num in invoices.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                    <li class="page-item {% if page_num == invoices.page %}active{% endif %}">
+                        <a class="page-link rounded-circle me-1" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; {% if page_num == invoices.page %}background:#0f172a; border-color:#0f172a; color:#fff;{% endif %}" href="{{ url_for('billing.list', page=page_num, from_date=request.args.get('from_date', ''), to_date=request.args.get('to_date', '')) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {% if not invoices.has_next %}disabled{% endif %}">
+                    <a class="page-link rounded-circle" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center;" href="{{ url_for('billing.list', page=invoices.next_num, from_date=request.args.get('from_date', ''), to_date=request.args.get('to_date', '')) }}">
+                        <i class="fas fa-chevron-right fa-xs"></i>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

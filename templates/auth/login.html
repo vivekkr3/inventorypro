@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In &mdash; InventoryPro Enterprise{% endblock %}
+
+{% block layout %}
+<!-- Luxury Fullscreen Auth Layout -->
+<div class="auth-page-wrapper min-vh-100 d-flex flex-column position-relative overflow-hidden">
+
+    <!-- Ambient Glowing Blobs with Silky Drift Animation -->
+    <div class="ambient-blob ambient-blob-1" style="opacity:0.45; animation: auroraFloat 16s ease-in-out infinite;"></div>
+    <div class="ambient-blob ambient-blob-2" style="opacity:0.35; animation: auroraFloatReverse 20s ease-in-out infinite;"></div>
+    <div class="ambient-blob" style="width:380px; height:380px; top:50%; left:50%; transform:translate(-50%,-50%); background:radial-gradient(circle, rgba(13,148,136,0.18) 0%, rgba(67,56,202,0.06) 60%, transparent 100%); filter:blur(70px); opacity:0.6; z-index:1; pointer-events:none;"></div>
+
+    <!-- Navigation Header -->
+    <nav class="py-3 px-4 position-relative" style="z-index: 5;">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a href="{{ url_for('main.landing') }}" class="text-white text-decoration-none d-flex align-items-center gap-2">
+                <div class="brand-icon-box" style="width:38px; height:38px; font-size:1.15rem; box-shadow:0 0 20px rgba(38,166,154,0.35);">
+                    <i class="fas fa-boxes-stacked"></i>
+                </div>
+                <span class="fs-4 fw-bold text-white tracking-tight">Inventory<span style="color:#2dd4bf;">Pro</span></span>
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <button type="button" class="btn-theme-toggle" onclick="toggleTheme()" aria-label="Toggle Dark/Light Mode" title="Toggle Theme">
+                    <i class="fas fa-moon theme-icon-moon"></i>
+                    <i class="fas fa-sun theme-icon-sun d-none"></i>
+                </button>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-outline-light btn-sm rounded-pill px-3 py-1 fw-semibold" style="border-color:rgba(255,255,255,0.25); backdrop-filter:blur(10px);">
+                    <i class="fas fa-store me-1 text-teal"></i>New Store Register
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Centered Card Container -->
+    <div class="flex-grow-1 d-flex align-items-center justify-content-center p-3 position-relative" style="z-index: 5;">
+        <div class="auth-card-luxury p-4 p-sm-5 animate-fade-up" style="max-width: 520px; width: 100%;">
+            <!-- Header -->
+            <div class="text-center mb-4">
+                <div class="d-inline-flex align-items-center justify-content-center rounded-4 mb-3 shadow-sm position-relative"
+                     style="width:62px; height:62px; background:linear-gradient(135deg, #00897b, #06b6d4); color:#fff; font-size:1.6rem; box-shadow: 0 10px 25px rgba(0,137,123,0.35);">
+                    <i class="fas fa-shield-halved"></i>
+                    <span class="position-absolute top-0 end-0 translate-middle p-1 bg-success border border-light rounded-circle" title="System Operational">
+                        <span class="visually-hidden">Live</span>
+                    </span>
+                </div>
+                <h2 class="h3 fw-bold mb-1 text-heading tracking-tight">Welcome Back</h2>
+                <p class="text-muted small mb-0">Multi-tenant retail &amp; industry operations workspace</p>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="mb-3 animate-fade-up">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show py-2 px-3 small rounded-3" role="alert">
+                    <i class="fas fa-circle-info me-1"></i> {{ message }}
+                    <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <!-- 1-Click Interactive Demo Store & Role Switcher -->
+            <div class="p-3 rounded-4 mb-4 border bg-light" style="background: rgba(248, 250, 252, 0.7); backdrop-filter: blur(10px);">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small fw-bold text-muted text-uppercase tracking-wider" style="font-size:0.68rem;">
+                        <i class="fas fa-bolt text-warning me-1"></i> Quick Demo Stores &amp; Roles:
+                    </span>
+                    <span class="badge bg-teal-subtle text-teal border border-teal-subtle font-monospace" style="font-size:0.65rem;">
+                        <i class="fas fa-database me-1"></i>Isolated DBs
+                    </span>
+                </div>
+
+                <!-- Store Carousel Chips -->
+                <div class="row g-2 mb-2">
+                    <!-- Store 1: TechMart -->
+                    <div class="col-4">
+                        <div class="store-select-chip active" id="chip-STORE001" onclick="selectDemoStore('STORE001', 'TechMart', 'Consumer Electronics')">
+                            <div class="text-truncate">
+                                <div class="fw-bold small mb-0 text-truncate" style="font-size:0.75rem;"><i class="fas fa-laptop text-teal me-1"></i>TechMart</div>
+                                <div class="text-muted text-truncate font-monospace" style="font-size:0.65rem;">STORE001</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Store 2: GreenLeaf -->
+                    <div class="col-4">
+                        <div class="store-select-chip" id="chip-GROCERY01" onclick="selectDemoStore('GROCERY01', 'GreenLeaf', 'Supermarket & Grocery')">
+                            <div class="text-truncate">
+                                <div class="fw-bold small mb-0 text-truncate" style="font-size:0.75rem;"><i class="fas fa-carrot text-success me-1"></i>GreenLeaf</div>
+                                <div class="text-muted text-truncate font-monospace" style="font-size:0.65rem;">GROCERY01</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Store 3: CarePlus -->
+                    <div class="col-4">
+                        <div class="store-select-chip" id="chip-PHARMA01" onclick="selectDemoStore('PHARMA01', 'CarePlus', 'Pharmacy & Healthcare')">
+                            <div class="text-truncate">
+                                <div class="fw-bold small mb-0 text-truncate" style="font-size:0.75rem;"><i class="fas fa-capsules text-info me-1"></i>CarePlus</div>
+                                <div class="text-muted text-truncate font-monospace" style="font-size:0.65rem;">PHARMA01</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Role Selector Pills -->
+                <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+                    <span class="text-muted small fw-semibold" style="font-size:0.7rem;">Role:</span>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="role-pill-btn active" id="pill-admin" onclick="selectRole('admin', 'admin123')">
+                            <i class="fas fa-crown text-warning"></i>Admin
+                        </button>
+                        <button type="button" class="role-pill-btn" id="pill-manager" onclick="selectRole('manager1', 'manager123')">
+                            <i class="fas fa-briefcase text-primary"></i>Manager
+                        </button>
+                        <button type="button" class="role-pill-btn" id="pill-cashier" onclick="selectRole('cashier1', 'cashier123')">
+                            <i class="fas fa-cash-register text-success"></i>Cashier
+                        </button>
+                    </div>
+                </div>
+
+                <div id="fillFeedback" class="small text-teal text-center mt-2 fw-semibold" style="font-size:0.7rem; min-height:16px;">
+                    <i class="fas fa-circle-check me-1"></i>Ready: TechMart Admin (STORE001)
+                </div>
+            </div>
+
+            <!-- Login Form -->
+            <form method="POST" action="{{ url_for('auth.login') }}" novalidate class="needs-validation" id="loginForm">
+                {{ form.hidden_tag() if form is defined }}
+
+                <!-- Store ID Field -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="store_id" class="form-label fw-semibold small text-heading mb-0">Store ID / Code</label>
+                        <span class="badge bg-light text-muted border font-monospace" id="storeBadge" style="font-size:0.68rem;">
+                            Active: TechMart
+                        </span>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-store"></i></span>
+                        <input type="text" class="form-control auth-input border-start-0 ps-0 text-uppercase font-monospace fw-bold" 
+                               id="store_id" name="store_id"
+                               placeholder="ENTER STORE CODE" required
+                               value="{{ form.store_id.data or request.args.get('store_id', 'STORE001') }}">
+                    </div>
+                    <div class="invalid-feedback">Please enter the Store ID code.</div>
+                </div>
+
+                <!-- Username Field -->
+                <div class="mb-3">
+                    <label for="username" class="form-label fw-semibold small text-heading">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-user"></i></span>
+                        <input type="text" class="form-control auth-input border-start-0 ps-0" id="username" name="username"
+                               placeholder="Enter username" required autofocus
+                               value="{{ request.form.get('username', 'admin') }}">
+                    </div>
+                    <div class="invalid-feedback">Please enter your username.</div>
+                </div>
+
+                <!-- Password Field -->
+                <div class="mb-3">
+                    <label for="password" class="form-label fw-semibold small text-heading">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-key"></i></span>
+                        <input type="password" class="form-control auth-input border-start-0 ps-0" id="password" name="password"
+                               placeholder="Enter password" value="admin123" required>
+                        <button class="btn btn-outline-secondary border-start-0" type="button" id="togglePassword" tabindex="-1" title="Show / Hide Password">
+                            <i class="fas fa-eye fa-sm"></i>
+                        </button>
+                    </div>
+                    <div class="invalid-feedback">Please enter your password.</div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="remember" name="remember" checked style="cursor:pointer;">
+                        <label class="form-check-label small text-muted ms-1" for="remember" style="cursor:pointer;">Remember this session</label>
+                    </div>
+                    <span class="text-muted small" style="font-size:0.72rem;">
+                        <i class="fas fa-lock text-success me-1"></i>256-bit Encrypted
+                    </span>
+                </div>
+
+                <button type="submit" class="btn w-100 py-3 fw-bold text-white rounded-pill btn-shimmer shadow-lg position-relative overflow-hidden" id="submitBtn"
+                        style="background:linear-gradient(135deg, #00897b, #0d9488); font-size:0.95rem; box-shadow:0 8px 25px rgba(0,137,123,0.35);">
+                    <span class="submit-text"><i class="fas fa-arrow-right-to-bracket me-2"></i>Sign In to Store Workspace</span>
+                    <span class="submit-spinner d-none"><i class="fas fa-circle-notch fa-spin me-2"></i>Authenticating...</span>
+                </button>
+            </form>
+
+            <hr class="my-4 border-light opacity-50">
+
+            <div class="text-center">
+                <p class="small text-muted mb-1">
+                    Need a dedicated database for a new retail branch?
+                </p>
+                <a href="{{ url_for('auth.register') }}" class="fw-bold text-decoration-none small" style="color:#00897b;">
+                    <i class="fas fa-plus-circle me-1"></i>Register New Store &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center py-3 text-white-50 small position-relative" style="z-index: 5;">
+        &copy; 2026 InventoryPro Enterprise. Multi-Tenant Retail &amp; Warehouse Architecture.
+    </div>
+</div>
+
+<!-- Bootstrap 5.3 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    let currentStore = 'STORE001';
+    let currentStoreName = 'TechMart';
+    let currentRole = 'admin';
+
+    function selectDemoStore(storeId, storeName, industry) {
+        currentStore = storeId;
+        currentStoreName = storeName;
+
+        // Update chips UI
+        document.querySelectorAll('.store-select-chip').forEach(c => c.classList.remove('active'));
+        const activeChip = document.getElementById('chip-' + storeId);
+        if (activeChip) activeChip.classList.add('active');
+
+        // Update form values
+        const storeInput = document.getElementById('store_id');
+        const badge = document.getElementById('storeBadge');
+        if (storeInput) storeInput.value = storeId;
+        if (badge) badge.textContent = 'Active: ' + storeName;
+
+        updateCredentialsAndFeedback();
+    }
+
+    function selectRole(username, password) {
+        currentRole = username.startsWith('admin') ? 'admin' : (username.startsWith('manager') ? 'manager' : 'cashier');
+
+        // Update role pills UI
+        document.querySelectorAll('.role-pill-btn').forEach(p => p.classList.remove('active'));
+        const activePill = document.getElementById('pill-' + currentRole);
+        if (activePill) activePill.classList.add('active');
+
+        // Update username & password inputs
+        const userInput = document.getElementById('username');
+        const passInput = document.getElementById('password');
+        if (userInput) userInput.value = username;
+        if (passInput) passInput.value = password;
+
+        updateCredentialsAndFeedback();
+    }
+
+    function updateCredentialsAndFeedback() {
+        const feedback = document.getElementById('fillFeedback');
+        const roleLabel = currentRole.charAt(0).toUpperCase() + currentRole.slice(1);
+        if (feedback) {
+            feedback.innerHTML = '<i class="fas fa-circle-check me-1"></i>Ready: ' + currentStoreName + ' ' + roleLabel + ' (' + currentStore + ')';
+            feedback.style.animation = 'none';
+            feedback.offsetHeight; /* trigger reflow */
+            feedback.style.animation = 'slideFadeUp 0.3s ease-out';
+        }
+    }
+
+    // Toggle password visibility
+    const toggleBtn = document.getElementById('togglePassword');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', function() {
+            const pwd = document.getElementById('password');
+            const icon = this.querySelector('i');
+            if (pwd.type === 'password') {
+                pwd.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                pwd.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        });
+    }
+
+    // Form submit spinner
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(e) {
+            if (this.checkValidity()) {
+                const btn = document.getElementById('submitBtn');
+                if (btn) {
+                    btn.querySelector('.submit-text')?.classList.add('d-none');
+                    btn.querySelector('.submit-spinner')?.classList.remove('d-none');
+                    btn.style.opacity = '0.9';
+                }
+            } else {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            this.classList.add('was-validated');
+        });
+    }
+</script>
+{% endblock %}

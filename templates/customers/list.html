@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Customers Directory &mdash; InventoryPro{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('customers.list') }}" class="text-muted">Customers</a></li>
+<li class="breadcrumb-item active text-dark">Directory</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+        <h1 class="h2 fw-bold mb-1 text-heading">
+            <i class="fas fa-user-group me-2 text-teal"></i>Customer Directory &amp; LTV
+        </h1>
+        <p class="text-muted mb-0 small">Client purchase histories, total revenue contribution, and billing records.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('billing.new') }}" class="btn btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
+            <i class="fas fa-cash-register me-1"></i>POS Terminal
+        </a>
+        <button class="btn text-white fw-semibold rounded-pill px-3 py-2 btn-shimmer" style="background: linear-gradient(135deg, #00897b, #0d9488); box-shadow: 0 4px 14px rgba(0, 137, 123, 0.35);" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+            <i class="fas fa-user-plus me-1"></i>Register Customer
+        </button>
+    </div>
+</div>
+
+<!-- Instant Search Filter -->
+<div class="card-modern mb-4 p-3">
+    <div class="input-group">
+        <span class="input-group-text bg-white border-end-0 text-muted ps-3"><i class="fas fa-search"></i></span>
+        <input type="text" class="form-control border-start-0 ps-2" placeholder="Instant search by customer name, email, or phone..." data-table-search="customersTable">
+    </div>
+</div>
+
+<!-- Customer Directory Card -->
+<div class="card-modern">
+    <div class="card-modern-header">
+        <div>
+            <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-address-book me-2 text-primary"></i>Customer Accounts Ledger</h6>
+            <small class="text-muted">Profiles and lifetime transaction volume</small>
+        </div>
+        <span class="badge bg-light text-dark border px-3 py-1 rounded-pill small">
+            {{ customers|length }} Customers
+        </span>
+    </div>
+    <div class="p-0 table-responsive">
+        <table class="table-luxury" id="customersTable">
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>Email Address</th>
+                    <th>Phone</th>
+                    <th class="text-end">Lifetime Value (LTV)</th>
+                    <th>Last Order Date</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if customers %}
+                    {% for customer in customers %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg, #0284c7, #4338ca); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.88rem;">
+                                    {{ customer.name[0] | upper }}
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark">{{ customer.name }}</div>
+                                    <small class="text-muted" style="font-size:0.72rem;">CUST-{{ customer.id }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if customer.email %}
+                            <a href="mailto:{{ customer.email }}" class="text-decoration-none small text-primary">
+                                <i class="far fa-envelope me-1"></i>{{ customer.email }}
+                            </a>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="font-tabular small">
+                            {{ customer.phone or '—' }}
+                        </td>
+                        <td class="text-end font-tabular fw-bold text-dark fs-6">
+                            ₹{{ "%.2f"|format(customer.total_purchases if customer.total_purchases is defined else 0) }}
+                        </td>
+                        <td class="small text-muted">
+                            {% if customer.last_purchase is defined and customer.last_purchase %}
+                                {{ customer.last_purchase.strftime('%d %b %Y') }}
+                            {% else %}
+                                <span class="badge bg-light text-secondary border rounded-pill px-2">First order pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                <a href="{{ url_for('customers.detail', id=customer.id) }}" class="btn btn-sm btn-outline-primary rounded-circle" style="width:32px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center;" title="View History & Invoices">
+                                    <i class="fas fa-eye fa-xs"></i>
+                                </a>
+                                {% if current_user.is_authenticated and current_user.role in ['admin', 'manager'] %}
+                                <a href="{{ url_for('customers.edit', id=customer.id) }}" class="btn btn-sm btn-outline-secondary rounded-circle" style="width:32px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center;" title="Edit Customer">
+                                    <i class="fas fa-pen fa-xs"></i>
+                                </a>
+                                {% endif %}
+                                {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                                <form action="{{ url_for('customers.delete', id=customer.id) }}" method="POST" class="d-inline"
+                                      onsubmit="return confirm('Archive customer &quot;{{ customer.name }}&quot;?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" style="width:32px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center;" title="Delete Customer">
+                                        <i class="fas fa-trash fa-xs"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr class="no-filter">
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="fas fa-user-group fa-2x mb-2 d-block opacity-25"></i>
+                            No customer records found.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: Add Customer -->
+<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('customers.add') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header-luxury">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-plus text-teal"></i>Register New Customer
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" required placeholder="e.g. Ramesh Patel">
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold small text-muted text-uppercase">Email Address</label>
+                            <input type="email" class="form-control" name="email" placeholder="client@example.com">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold small text-muted text-uppercase">Phone Number</label>
+                            <input type="text" class="form-control" name="phone" placeholder="+91 98765 43210">
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Shipping / Billing Address</label>
+                        <textarea class="form-control" name="address" rows="2" placeholder="Street, City, Pin Code..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light p-3">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dark rounded-pill px-4 fw-semibold">
+                        <i class="fas fa-check me-1"></i>Save Profile
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

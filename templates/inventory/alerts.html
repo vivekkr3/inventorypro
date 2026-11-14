@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Low Stock Alerts &mdash; InventoryPro{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('inventory.list') }}" class="text-muted">Inventory</a></li>
+<li class="breadcrumb-item active text-dark">Stock Alerts</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 animate-fade-up">
+    <div>
+        <h1 class="h2 fw-bold mb-1 text-heading">
+            <i class="fas fa-bell me-2 text-danger"></i>Inventory Restock Hub
+        </h1>
+        <p class="text-muted mb-0 small">Automated replenishment alerts for items falling below safety threshold levels.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('inventory.list') }}" class="btn btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
+            <i class="fas fa-warehouse me-1"></i>Full Inventory
+        </a>
+        <a href="{{ url_for('suppliers.purchase_orders') }}" class="btn text-white fw-semibold rounded-pill px-3 py-2 btn-shimmer" style="background: linear-gradient(135deg, #00897b, #0d9488); box-shadow: 0 4px 14px rgba(0, 137, 123, 0.35);">
+            <i class="fas fa-truck-fast me-1"></i>Generate Purchase Order
+        </a>
+    </div>
+</div>
+
+<!-- Alert Banner -->
+{% if low_stock_products|length > 0 %}
+<div class="card-modern mb-4 p-3 border-start border-4 border-danger animate-fade-up delay-1">
+    <div class="d-flex align-items-center gap-3">
+        <div style="width: 46px; height: 46px; border-radius: 12px; background: #fff1f2; color: #e11d48; display:flex; align-items:center; justify-content:center; font-size:1.3rem;">
+            <i class="fas fa-triangle-exclamation"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h6 class="fw-bold text-dark mb-0">
+                {{ low_stock_products|length }} Product{{ 's' if low_stock_products|length != 1 }} Require Immediate Restocking
+            </h6>
+            <small class="text-muted">Items below their designated safety buffer may risk stockouts during peak POS sales.</small>
+        </div>
+        <a href="{{ url_for('suppliers.purchase_orders') }}" class="btn btn-sm btn-danger rounded-pill px-3 fw-semibold">
+            Restock All via PO
+        </a>
+    </div>
+</div>
+{% else %}
+<div class="card-modern mb-4 p-4 border-start border-4 border-success text-center animate-fade-up delay-1">
+    <div style="width: 54px; height: 54px; border-radius: 50%; background: #ecfdf5; color: #059669; display:flex; align-items:center; justify-content:center; margin: 0 auto 0.75rem; font-size: 1.6rem;">
+        <i class="fas fa-circle-check"></i>
+    </div>
+    <h5 class="fw-bold text-dark mb-1">Catalog Reserves Fully Healthy</h5>
+    <p class="text-muted small mb-0">Every inventory item currently satisfies or exceeds its safe buffer threshold.</p>
+</div>
+{% endif %}
+
+<!-- Low Stock Table -->
+<div class="card-modern animate-fade-up delay-2">
+    <div class="card-modern-header">
+        <div>
+            <h6 class="fw-bold mb-0 text-danger"><i class="fas fa-list-check me-2"></i>Critical Replenishment Priority List</h6>
+            <small class="text-muted">Ranked by lowest stock availability</small>
+        </div>
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1 rounded-pill small">
+            {{ low_stock_products|length }} Pending Alerts
+        </span>
+    </div>
+    <div class="p-0 table-responsive">
+        <table class="table-luxury">
+            <thead>
+                <tr>
+                    <th>Product Name &amp; SKU</th>
+                    <th>Category</th>
+                    <th class="text-center">Current Stock</th>
+                    <th class="text-center">Safe Buffer</th>
+                    <th class="text-center">Suggested PO Qty</th>
+                    <th>Deficit Level</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if low_stock_products %}
+                    {% for product in low_stock_products %}
+                    {% set suggested_po = (product.low_stock_threshold * 2) - product.quantity %}
+                    {% set suggested_po = product.low_stock_threshold if suggested_po <= 0 else suggested_po %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark">{{ product.name }}</div>
+                            <span class="sku-badge">
+                                <i class="far fa-copy text-muted fa-xs"></i>{{ product.sku }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-secondary border px-2 py-1 rounded-pill" style="font-size:0.75rem;">
+                                {{ product.category.name if product.category else 'General' }}
+                            </span>
+                        </td>
+                        <td class="text-center font-tabular">
+                            <span class="badge {{ 'bg-danger' if product.quantity <= 0 else 'bg-warning text-dark' }} px-3 py-1 rounded-pill fw-bold">
+                                {{ product.quantity }} left
+                            </span>
+                        </td>
+                        <td class="text-center font-tabular text-muted">
+                            {{ product.low_stock_threshold }}
+                        </td>
+                        <td class="text-center font-tabular">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1 fw-bold">
+                                +{{ suggested_po }} units
+                            </span>
+                        </td>
+                        <td>
+                            {% if product.quantity <= 0 %}
+                            <span class="badge-status badge-out-of-stock">
+                                <span class="status-dot"></span>Depleted
+                            </span>
+                            {% else %}
+                            <span class="badge-status badge-low-stock">
+                                <span class="status-dot"></span>Critical Buffer
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('suppliers.purchase_orders') }}" class="btn btn-sm btn-dark rounded-pill px-3 fw-semibold">
+                                <i class="fas fa-truck-ramp-box me-1"></i>Order Stock
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fas fa-shield-check fa-2x mb-2 d-block text-success opacity-50"></i>
+                            No stock alerts at this time. All thresholds are satisfied!
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

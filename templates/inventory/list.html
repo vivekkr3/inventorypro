@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory Stock Levels &mdash; InventoryPro{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('inventory.list') }}" class="text-muted">Inventory</a></li>
+<li class="breadcrumb-item active text-dark">Stock Levels</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 animate-fade-up">
+    <div>
+        <h1 class="h2 fw-bold mb-1 text-heading">
+            <i class="fas fa-warehouse me-2 text-teal"></i>Inventory &amp; Valuation
+        </h1>
+        <p class="text-muted mb-0 small">Real-time stock balance, safe buffer margins, and aggregate asset valuation.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('inventory.alerts') }}" class="btn btn-outline-danger rounded-pill px-3 py-2 fw-semibold">
+            <i class="fas fa-bell me-1"></i>View Restock Alerts ({{ low_stock_count }})
+        </a>
+        <a href="{{ url_for('suppliers.purchase_orders') }}" class="btn text-white fw-semibold rounded-pill px-3 py-2 btn-shimmer" style="background: linear-gradient(135deg, #00897b, #0d9488); box-shadow: 0 4px 14px rgba(0, 137, 123, 0.35);">
+            <i class="fas fa-truck-fast me-1"></i>Create Purchase Order
+        </a>
+    </div>
+</div>
+
+<!-- ═══ Inventory Metric Cards ═══ -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3 animate-fade-up delay-1">
+        <div class="stat-card-luxury h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-title">Catalog SKUs</div>
+                    <div class="stat-value counter-value" data-target="{{ products|length }}">{{ products|length }}</div>
+                </div>
+                <div class="stat-icon-wrapper" style="background:#eff6ff; color:#2563eb;">
+                    <i class="fas fa-boxes-stacked"></i>
+                </div>
+            </div>
+            <div class="stat-trend-pill trend-up">
+                <i class="fas fa-cubes"></i>
+                <span>Monitored items</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3 animate-fade-up delay-2">
+        <div class="stat-card-luxury h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-title">Inventory Valuation</div>
+                    <div class="stat-value counter-value" data-target="{{ total_value }}" data-prefix="₹" data-decimal="true">
+                        ₹{{ "%.2f"|format(total_value) }}
+                    </div>
+                </div>
+                <div class="stat-icon-wrapper" style="background:#f0fdf4; color:#16a34a;">
+                    <i class="fas fa-coins"></i>
+                </div>
+            </div>
+            <div class="stat-trend-pill trend-up">
+                <i class="fas fa-chart-pie"></i>
+                <span>At retail selling price</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3 animate-fade-up delay-3">
+        <div class="stat-card-luxury h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-title">Low Stock Buffer</div>
+                    <div class="stat-value counter-value {{ 'text-warning' if low_stock_count > 0 else 'text-success' }}" data-target="{{ low_stock_count }}">
+                        {{ low_stock_count }}
+                    </div>
+                </div>
+                <div class="stat-icon-wrapper" style="background:#fffbeb; color:#d97706;">
+                    <i class="fas fa-triangle-exclamation"></i>
+                </div>
+            </div>
+            <div class="stat-trend-pill {{ 'trend-warning' if low_stock_count > 0 else 'trend-up' }}">
+                <i class="fas fa-shield-halved"></i>
+                <span>{{ 'Needs replenishment' if low_stock_count > 0 else 'Optimal stock reserve' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3 animate-fade-up delay-4">
+        <div class="stat-card-luxury h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-title">Depleted Items</div>
+                    <div class="stat-value counter-value {{ 'text-danger' if out_of_stock_count > 0 else 'text-success' }}" data-target="{{ out_of_stock_count }}">
+                        {{ out_of_stock_count }}
+                    </div>
+                </div>
+                <div class="stat-icon-wrapper" style="background:#fef2f2; color:#dc2626;">
+                    <i class="fas fa-ban"></i>
+                </div>
+            </div>
+            <div class="stat-trend-pill {{ 'trend-down' if out_of_stock_count > 0 else 'trend-up' }}">
+                <i class="fas fa-bell"></i>
+                <span>{{ 'Zero stock units' if out_of_stock_count > 0 else 'Zero stockouts' }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Fast Filter -->
+<div class="card-modern mb-4 p-3 animate-fade-up delay-2">
+    <div class="input-group">
+        <span class="input-group-text bg-white border-end-0 text-muted ps-3">
+            <i class="fas fa-search"></i>
+        </span>
+        <input type="text" class="form-control border-start-0 ps-2" 
+               placeholder="Instant filter stock ledger by product name, SKU, or category..." 
+               data-table-search="inventoryTable">
+    </div>
+</div>
+
+<!-- Stock Ledger Table -->
+<div class="card-modern animate-fade-up delay-3">
+    <div class="card-modern-header">
+        <div>
+            <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-layer-group me-2 text-primary"></i>On-Hand Stock Balance</h6>
+            <small class="text-muted">Live inventory balance and unit valuation</small>
+        </div>
+        <span class="badge bg-light text-dark border px-3 py-1 rounded-pill small">
+            {{ products|length }} Total Items
+        </span>
+    </div>
+    <div class="p-0 table-responsive">
+        <table class="table-luxury" id="inventoryTable">
+            <thead>
+                <tr>
+                    <th>Product &amp; SKU</th>
+                    <th>Category</th>
+                    <th class="text-center">Current Stock</th>
+                    <th style="min-width: 140px;">Stock Health</th>
+                    <th class="text-center">Threshold</th>
+                    <th>Status</th>
+                    <th class="text-end">Inventory Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                {% set max_expected = product.low_stock_threshold * 3 %}
+                {% set pct = (product.quantity / max_expected * 100) | round | int if max_expected > 0 else 50 %}
+                {% set pct = 100 if pct > 100 else pct %}
+                <tr>
+                    <td>
+                        <div class="fw-bold text-dark">{{ product.name }}</div>
+                        <span class="sku-badge" data-bs-toggle="tooltip" title="Click to copy SKU">
+                            <i class="far fa-copy text-muted fa-xs"></i>{{ product.sku }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-secondary border px-2 py-1 rounded-pill" style="font-size:0.75rem;">
+                            {{ product.category.name if product.category else 'General' }}
+                        </span>
+                    </td>
+                    <td class="text-center font-tabular">
+                        <span class="fw-bold fs-6 {{ 'text-danger' if product.quantity <= 0 else 'text-warning' if product.quantity <= product.low_stock_threshold else 'text-dark' }}">
+                            {{ product.quantity }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress flex-grow-1" style="height: 6px; background:#f1f5f9; border-radius:10px;">
+                                <div class="progress-bar {{ 'bg-danger' if product.quantity <= 0 else 'bg-warning' if product.quantity <= product.low_stock_threshold else 'bg-success' }}" 
+                                     style="width: {{ pct }}%; border-radius:10px;"></div>
+                            </div>
+                            <span class="small text-muted font-tabular" style="font-size:0.72rem;">{{ pct }}%</span>
+                        </div>
+                    </td>
+                    <td class="text-center font-tabular text-muted">
+                        {{ product.low_stock_threshold }}
+                    </td>
+                    <td>
+                        {% if product.quantity <= 0 %}
+                        <span class="badge-status badge-out-of-stock">
+                            <span class="status-dot"></span>Depleted
+                        </span>
+                        {% elif product.quantity <= product.low_stock_threshold %}
+                        <span class="badge-status badge-low-stock">
+                            <span class="status-dot"></span>Low Stock
+                        </span>
+                        {% else %}
+                        <span class="badge-status badge-in-stock">
+                            <span class="status-dot"></span>Healthy
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end font-tabular fw-bold text-dark pe-3">
+                        ₹{{ "%.2f"|format(product.selling_price * product.quantity) }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr class="no-filter">
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="fas fa-boxes-stacked fa-2x mb-2 d-block opacity-25"></i>
+                        No inventory items recorded yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

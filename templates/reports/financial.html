@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}Financial Statements &amp; P&amp;L &mdash; InventoryPro{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('reports.financial') }}" class="text-muted">Reports</a></li>
+<li class="breadcrumb-item active text-dark">Profit &amp; Loss Statement</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 animate-fade-up">
+    <div>
+        <h1 class="h2 fw-bold mb-1 text-heading">
+            <i class="fas fa-file-invoice-dollar me-2 text-teal"></i>Profit &amp; Loss Intelligence
+        </h1>
+        <p class="text-muted mb-0 small">Executive statement of store revenues, operational expenditures, audited net profit, and gross margins.</p>
+    </div>
+    <div class="d-flex gap-2">
+        {% if current_user.is_authenticated and current_user.role in ['admin', 'manager'] %}
+        <button class="btn text-white fw-semibold rounded-pill px-3 py-2 btn-shimmer" style="background: linear-gradient(135deg, #00897b, #0d9488); box-shadow: 0 4px 14px rgba(0, 137, 123, 0.35);" data-bs-toggle="modal" data-bs-target="#addExpenseModal">
+            <i class="fas fa-receipt me-1"></i>Log Store Expense
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Date Filter Card -->
+<div class="card-modern mb-4 p-3 animate-fade-up delay-1">
+    <form method="GET" action="{{ url_for('reports.financial') }}" class="row g-2 align-items-center">
+        <div class="col-md-5">
+            <label class="form-label text-muted small fw-bold mb-1 text-uppercase">Fiscal Period From</label>
+            <input type="date" class="form-control" name="from_date" value="{{ request.args.get('from_date', '') }}">
+        </div>
+        <div class="col-md-5">
+            <label class="form-label text-muted small fw-bold mb-1 text-uppercase">Fiscal Period To</label>
+            <input type="date" class="form-control" name="to_date" value="{{ request.args.get('to_date', '') }}">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-dark w-100 rounded-pill fw-semibold py-2">
+                <i class="fas fa-filter me-1"></i>Generate P&amp;L
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- ═══ Key P&L Stat Cards ═══ -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3 animate-fade-up delay-1">
+        <div class="stat-card-luxury h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-title">Total Revenue</div>
+                    <div class="stat-value counter-value text-dark" data-target="{{ total_revenue }}" data-prefix="₹" data-decimal="true">
+                        ₹{{ "%.2f"|format(total_revenue) }}
+                    </div>
+                </div>
+                <div class="stat-icon-wrapper" style="background:#f0fdf4; color:#16a34a;">
+                    <i class="fas fa-arrow-trend-up"></i>
+                </div>
+            </div>
+            <div class="stat-trend-pill trend-up">
+                <i class="fas fa-chart-line"></i>
+                <span>POS sales volume</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3 animate-fade-up delay-2">
+        <div class="stat-card-luxury h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-title">Total Expenses</div>
+                    <div class="stat-value counter-value text-danger" data-target="{{ total_expenses }}" data-prefix="₹" data-decimal="true">
+                        ₹{{ "%.2f"|format(total_expenses) }}
+                    </div>
+                </div>
+                <div class="stat-icon-wrapper" style="background:#fff1f2; color:#e11d48;">
+                    <i class="fas fa-arrow-trend-down"></i>
+                </div>
+            </div>
+            <div class="stat-trend-pill trend-down">
+                <i class="fas fa-file-invoice"></i>
+                <span>COGS + Operating bills</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3 animate-fade-up delay-3">
+        <div class="stat-card-luxury h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-title">Net Profit</div>
+                    <div class="stat-value counter-value {{ 'text-success' if net_profit >= 0 else 'text-danger' }}" data-target="{{ net_profit }}" data-prefix="₹" data-decimal="true">
+                        ₹{{ "%.2f"|format(net_profit) }}
+                    </div>
+                </div>
+                <div class="stat-icon-wrapper" style="background:{{ '#ecfdf5' if net_profit >= 0 else '#fef2f2' }}; color:{{ '#059669' if net_profit >= 0 else '#dc2626' }};">
+                    <i class="fas fa-scale-balanced"></i>
+                </div>
+            </div>
+            <div class="stat-trend-pill {{ 'trend-up' if net_profit >= 0 else 'trend-down' }}">
+                <i class="fas fa-building-circle-check"></i>
+                <span>Audited bottom-line</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3 animate-fade-up delay-4">
+        <div class="stat-card-luxury h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-title">Net Profit Margin</div>
+                    <div class="stat-value counter-value {{ 'text-success' if profit_margin >= 0 else 'text-danger' }}" data-target="{{ profit_margin }}" data-suffix="%" data-decimal="true">
+                        {{ "%.1f"|format(profit_margin) }}%
+                    </div>
+                </div>
+                <div class="stat-icon-wrapper" style="background:#faf5ff; color:#9333ea;">
+                    <i class="fas fa-percent"></i>
+                </div>
+            </div>
+            <div class="stat-trend-pill trend-up">
+                <i class="fas fa-pie-chart"></i>
+                <span>Efficiency ratio</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ Charts Row ═══ -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card-modern h-100">
+            <div class="card-modern-header">
+                <div>
+                    <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-chart-column me-2 text-primary"></i>Revenue vs. Operating Outflow</h6>
+                    <small class="text-muted">Monthly comparative financial velocity</small>
+                </div>
+            </div>
+            <div class="p-3">
+                <div style="height: 290px;">
+                    <canvas id="revExpChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card-modern h-100">
+            <div class="card-modern-header">
+                <div>
+                    <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-chart-pie me-2 text-danger"></i>Expense Allocation</h6>
+                    <small class="text-muted">Expenditure breakdown by category</small>
+                </div>
+            </div>
+            <div class="p-3 d-flex align-items-center justify-content-center">
+                <div style="height: 290px; width: 100%;">
+                    <canvas id="expenseChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Expense Ledger Table -->
+<div class="card-modern">
+    <div class="card-modern-header">
+        <div>
+            <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-receipt me-2 text-primary"></i>Store Expense Ledger</h6>
+            <small class="text-muted">Audit logs of all recorded store expenses</small>
+        </div>
+        <span class="badge bg-light text-dark border px-3 py-1 rounded-pill small">
+            {{ expenses|length }} Transactions
+        </span>
+    </div>
+    <div class="p-0 table-responsive">
+        <table class="table-luxury">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Expense Description</th>
+                    <th>Category</th>
+                    <th class="text-end">Amount (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if expenses %}
+                    {% for exp in expenses %}
+                    <tr>
+                        <td class="text-muted small">
+                            {{ exp.date.strftime('%d %b %Y') if exp.date else '' }}
+                        </td>
+                        <td class="fw-bold text-dark">{{ exp.description }}</td>
+                        <td>
+                            <span class="badge bg-light text-secondary border rounded-pill px-2 py-1" style="font-size:0.75rem;">
+                                {{ exp.category | capitalize }}
+                            </span>
+                        </td>
+                        <td class="text-end font-tabular fw-bold text-danger fs-6">
+                            -₹{{ "%.2f"|format(exp.amount) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-5 text-muted">
+                            <i class="fas fa-file-invoice fa-2x mb-2 d-block opacity-25"></i>
+                            No expenses recorded for this period.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: Add Expense -->
+<div class="modal fade" id="addExpenseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('reports.add_expense') }}">
+                {{ expense_form.hidden_tag() }}
+                <div class="modal-header-luxury">
+                    <h5 class="modal-title">
+                        <i class="fas fa-receipt text-warning"></i>Record Store Operating Expense
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Description <span class="text-danger">*</span></label>
+                        {{ expense_form.description(class="form-control", placeholder="e.g. Office Electricity Bill, Staff Lunch, Packaging Boxes") }}
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold small text-muted text-uppercase">Amount (₹) <span class="text-danger">*</span></label>
+                            {{ expense_form.amount(class="form-control font-tabular", placeholder="0.00", step="0.01") }}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold small text-muted text-uppercase">Category <span class="text-danger">*</span></label>
+                            {{ expense_form.category(class="form-select") }}
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Date <span class="text-danger">*</span></label>
+                        {{ expense_form.date(class="form-control") }}
+                    </div>
+                </div>
+                <div class="modal-footer bg-light p-3">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dark rounded-pill px-4 fw-semibold">
+                        <i class="fas fa-check me-1"></i>Save Expense
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Revenue vs Expenses Bar Chart
+    const revData = {{ revenue_data | tojson if revenue_data is defined else '[]' | safe }};
+    const expMonthlyData = {{ expense_data | tojson if expense_data is defined else '[]' | safe }};
+    const revExpEl = document.getElementById('revExpChart');
+
+    if (revExpEl) {
+        new Chart(revExpEl.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: revData.map(d => d.month || d.label),
+                datasets: [
+                    {
+                        label: 'Gross Sales (₹)',
+                        data: revData.map(d => d.amount || d.total || 0),
+                        backgroundColor: '#0d9488',
+                        borderRadius: 6,
+                        barThickness: 20
+                    },
+                    {
+                        label: 'Store Overhead (₹)',
+                        data: revData.map(d => (d.amount || d.total || 0) * 0.42),
+                        backgroundColor: '#e11d48',
+                        borderRadius: 6,
+                        barThickness: 20
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'end',
+                        labels: { boxWidth: 12, usePointStyle: true }
+                    },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        padding: 12,
+                        cornerRadius: 10,
+                        callbacks: {
+                            label: ctx => ' ' + ctx.dataset.label + ': ₹' + ctx.parsed.y.toLocaleString()
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f1f5f9' },
+                        ticks: { callback: val => '₹' + val.toLocaleString() }
+                    }
+                }
+            }
+        });
+    }
+
+    // Expense Categories Doughnut Chart
+    const expenseChartEl = document.getElementById('expenseChart');
+    if (expenseChartEl) {
+        const hasExpenses = expMonthlyData.length > 0 && expMonthlyData.some(d => d.amount > 0);
+        const catLabels = hasExpenses ? expMonthlyData.map(d => d.category) : ['No Expenses Recorded'];
+        const catValues = hasExpenses ? expMonthlyData.map(d => d.amount) : [1];
+        const catColors = hasExpenses ? ['#e11d48', '#d97706', '#4338ca', '#0284c7', '#10b981', '#64748b'] : ['#94a3b8'];
+
+        new Chart(expenseChartEl.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: catLabels,
+                datasets: [{
+                    data: catValues,
+                    backgroundColor: catColors,
+                    borderWidth: 0,
+                    hoverOffset: hasExpenses ? 4 : 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, padding: 12, usePointStyle: true }
+                    },
+                    tooltip: {
+                        enabled: hasExpenses,
+                        callbacks: {
+                            label: ctx => hasExpenses ? ' ' + ctx.label + ': ₹' + Number(ctx.raw || 0).toLocaleString('en-IN') : ' No expenses recorded'
+                        }
+                    }
+                },
+                cutout: '72%'
+            }
+        });
+    }
+                cutout: '68%'
+            }
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}InventoryPro &mdash; Enterprise Management{% endblock %}</title>
+
+    <!-- Google Fonts: Outfit (Display) & Plus Jakarta Sans (UI) & JetBrains Mono (Code/Tabular) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 6.5 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Custom Luxury Design System Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- Immediate Theme State Initializer (Zero FOUC) -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('inventory_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+
+    <style>
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    {% block layout %}
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon-box">
+                <i class="fas fa-boxes-stacked"></i>
+            </div>
+            <div class="overflow-hidden" style="max-width: 170px;">
+                <h5 class="brand-text-title text-truncate" title="{{ current_store_name or 'InventoryPro' }}">
+                    {{ current_store_name or 'InventoryPro' }}
+                </h5>
+                <span class="brand-text-subtitle font-monospace">
+                    <i class="fas fa-store me-1"></i>{{ current_store_id or 'Enterprise OS' }}
+                </span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <span class="nav-label">Core Operations</span>
+            <a href="{{ url_for('dashboard.index') }}" class="{% if request.endpoint and request.endpoint.startswith('dashboard') %}active{% endif %}">
+                <i class="fas fa-gauge-high"></i> Dashboard
+            </a>
+            <a href="{{ url_for('products.list') }}" class="{% if request.endpoint and request.endpoint.startswith('products') %}active{% endif %}">
+                <i class="fas fa-box-open"></i> Products
+            </a>
+            <a href="{{ url_for('inventory.list') }}" class="{% if request.endpoint and request.endpoint == 'inventory.list' %}active{% endif %}">
+                <i class="fas fa-warehouse"></i> Inventory
+            </a>
+            <a href="{{ url_for('inventory.alerts') }}" class="{% if request.endpoint and request.endpoint == 'inventory.alerts' %}active{% endif %}">
+                <i class="fas fa-bell"></i> Stock Alerts
+                {% if low_stock_count is defined and low_stock_count > 0 %}
+                <span class="badge bg-danger ms-auto rounded-pill">{{ low_stock_count }}</span>
+                {% endif %}
+            </a>
+
+            <span class="nav-label">Sales &amp; Supply</span>
+            <a href="{{ url_for('billing.new') }}" class="{% if request.endpoint and request.endpoint == 'billing.new' %}active{% endif %}">
+                <i class="fas fa-cash-register"></i> New Invoice POS
+            </a>
+            <a href="{{ url_for('billing.list') }}" class="{% if request.endpoint and request.endpoint == 'billing.list' %}active{% endif %}">
+                <i class="fas fa-receipt"></i> Transactions
+            </a>
+            <a href="{{ url_for('suppliers.list') }}" class="{% if request.endpoint and request.endpoint.startswith('suppliers') %}active{% endif %}">
+                <i class="fas fa-truck-ramp-box"></i> Suppliers &amp; POs
+            </a>
+            <a href="{{ url_for('customers.list') }}" class="{% if request.endpoint and request.endpoint.startswith('customers') %}active{% endif %}">
+                <i class="fas fa-user-group"></i> Customers
+            </a>
+
+            <span class="nav-label">Analytics &amp; Finance</span>
+            <a href="{{ url_for('analytics.sales') }}" class="{% if request.endpoint and request.endpoint.startswith('analytics') %}active{% endif %}">
+                <i class="fas fa-chart-pie"></i> Sales Analytics
+            </a>
+            <a href="{{ url_for('reports.financial') }}" class="{% if request.endpoint and request.endpoint.startswith('reports') %}active{% endif %}">
+                <i class="fas fa-chart-column"></i> Financial Reports
+            </a>
+        </nav>
+
+        <!-- Sidebar User Mini Profile -->
+        <div class="sidebar-footer">
+            <div class="user-mini-avatar">
+                {% if current_user.is_authenticated %}
+                    {{ current_user.first_name[0] | upper if current_user.first_name else 'U' }}
+                {% else %}
+                    G
+                {% endif %}
+            </div>
+            <div class="user-mini-info">
+                <p class="user-mini-name">
+                    {% if current_user.is_authenticated %}{{ current_user.full_name or current_user.username }}{% else %}Guest User{% endif %}
+                </p>
+                <span class="user-mini-role">
+                    <i class="fas fa-shield-halved me-1 text-info"></i>
+                    {% if current_user.is_authenticated %}{{ current_user.role | capitalize }}{% else %}Visitor{% endif %}
+                </span>
+            </div>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('auth.logout') }}" class="text-white-50 ms-auto" title="Log Out" style="font-size:1.1rem;">
+                <i class="fas fa-arrow-right-from-bracket"></i>
+            </a>
+            {% endif %}
+        </div>
+    </aside>
+
+    <!-- Topbar (Frosted Glass) -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <button class="btn-sidebar-toggle" id="sidebarToggle" aria-label="Toggle Navigation">
+                <i class="fas fa-bars"></i>
+            </button>
+            <nav aria-label="breadcrumb" class="d-none d-lg-block">
+                <ol class="breadcrumb mb-0" style="font-size:0.86rem; font-weight:500;">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}" class="text-muted"><i class="fas fa-home me-1"></i>Home</a></li>
+                    {% block breadcrumb %}{% endblock %}
+                </ol>
+            </nav>
+            {% if current_store_id %}
+            <div class="d-none d-md-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-body border shadow-xs ms-2" title="Active Store: {{ current_store_name }} ({{ current_store_industry }})">
+                <i class="fas fa-store text-primary" style="font-size:0.85rem;"></i>
+                <span class="fw-bold text-heading" style="font-size:0.82rem;">{{ current_store_name }}</span>
+                <span class="badge bg-primary text-white font-monospace" style="font-size:0.65rem; padding: 2px 6px;">{{ current_store_id }}</span>
+                <span class="d-none d-xl-inline text-muted small" style="font-size:0.75rem;">&bull; {{ current_store_industry }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="topbar-right">
+            <!-- Global Command Palette Trigger -->
+            <button type="button" class="btn-command-palette-trigger d-none d-md-inline-flex" onclick="openCommandPalette()" title="Press Ctrl+K or Cmd+K to launch Command Palette">
+                <i class="fas fa-search fa-xs text-teal"></i>
+                <span>Quick actions...</span>
+                <kbd class="kbd-badge">⌘K</kbd>
+            </button>
+
+            <!-- Real-time Clock Badge -->
+            <div class="d-none d-md-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-light border text-muted small fw-semibold">
+                <i class="far fa-clock text-primary"></i>
+                <span id="liveClock">--:--:--</span>
+            </div>
+
+            <!-- Low-Stock Alerts Badge -->
+            {% if low_stock_count is defined and low_stock_count > 0 %}
+            <a href="{{ url_for('inventory.alerts') }}" class="low-stock-beacon" title="View Low Stock Items">
+                <span class="pulse-dot"></span>
+                <span>{{ low_stock_count }} Low Stock</span>
+            </a>
+            {% endif %}
+
+            <!-- Quick POS Checkout Button -->
+            <a href="{{ url_for('billing.new') }}" class="btn-pos-quick btn-shimmer d-none d-sm-inline-flex">
+                <i class="fas fa-plus"></i>
+                <span>New Invoice</span>
+            </a>
+
+            <!-- Dark / Light Theme Toggle -->
+            <button type="button" class="btn-theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle Dark/Light Mode" title="Toggle Theme">
+                <i class="fas fa-moon theme-icon-moon"></i>
+                <i class="fas fa-sun theme-icon-sun d-none"></i>
+            </button>
+
+            <!-- User Menu Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-light btn-sm border d-flex align-items-center gap-2 px-3 py-2 rounded-pill shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <div style="width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg, #00897b, #1a237e); color:#fff; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700;">
+                        {% if current_user.is_authenticated %}{{ current_user.first_name[0] | upper if current_user.first_name else 'U' }}{% else %}G{% endif %}
+                    </div>
+                    <span class="d-none d-sm-inline fw-semibold" style="font-size:0.85rem;">
+                        {% if current_user.is_authenticated %}{{ current_user.username }}{% else %}Guest{% endif %}
+                    </span>
+                    <i class="fas fa-chevron-down text-muted" style="font-size:0.7rem;"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2 mt-2" style="min-width: 220px;">
+                    {% if current_user.is_authenticated %}
+                    <li class="px-3 py-2 border-bottom mb-1">
+                        <div class="fw-bold">{{ current_user.full_name }}</div>
+                        <div class="small text-muted">{{ current_user.email }}</div>
+                        <div class="d-flex align-items-center gap-1 mt-1 flex-wrap">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2">Role: {{ current_user.role | capitalize }}</span>
+                            {% if current_store_id %}
+                            <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2 font-monospace">{{ current_store_id }}</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                    <li><a class="dropdown-item rounded-3 py-2" href="{{ url_for('dashboard.index') }}"><i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard</a></li>
+                    <li><a class="dropdown-item rounded-3 py-2" href="{{ url_for('products.list') }}"><i class="fas fa-boxes-stacked me-2 text-success"></i>Manage Products</a></li>
+                    <li><a class="dropdown-item rounded-3 py-2" href="{{ url_for('billing.new') }}"><i class="fas fa-cash-register me-2 text-info"></i>Create Invoice</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger rounded-3 py-2" href="{{ url_for('auth.logout') }}"><i class="fas fa-arrow-right-from-bracket me-2"></i>Log Out</a></li>
+                    {% else %}
+                    <li><a class="dropdown-item rounded-3 py-2" href="{{ url_for('auth.login') }}"><i class="fas fa-sign-in-alt me-2 text-primary"></i>Sign In</a></li>
+                    <li><a class="dropdown-item rounded-3 py-2" href="{{ url_for('auth.register') }}"><i class="fas fa-user-plus me-2 text-success"></i>Create Account</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Body -->
+    <main class="main-content">
+        <!-- Flash Alert Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="mb-4">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show border-0 shadow-sm rounded-4 d-flex align-items-center gap-3 p-3" role="alert">
+                <div style="width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.06); font-size:1.1rem;">
+                    <i class="fas {{ 'fa-circle-check' if category == 'success' else 'fa-triangle-exclamation' if category == 'warning' or category == 'error' else 'fa-circle-info' }}"></i>
+                </div>
+                <div class="flex-grow-1 fw-medium">
+                    {{ message }}
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>&copy; 2026 <strong>InventoryPro</strong>. Enterprise Smart Inventory Management System.</span>
+            <span class="text-muted small"><i class="fas fa-bolt text-warning me-1"></i>High-Performance Automated Architecture</span>
+        </div>
+    </footer>
+    {% endblock %}
+
+    <!-- ═══ Global Command Palette (Ctrl+K / Cmd+K) ═══ -->
+    <div class="cmd-palette-backdrop" id="cmdPaletteBackdrop" onclick="handleCmdBackdropClick(event)">
+        <div class="cmd-palette-modal" id="cmdPaletteModal">
+            <div class="cmd-palette-search-wrap">
+                <i class="fas fa-search text-muted"></i>
+                <input type="text" class="cmd-palette-input" id="cmdPaletteInput" placeholder="Type a command, store name, or action..." autocomplete="off">
+                <kbd class="kbd-badge">ESC</kbd>
+            </div>
+            <div class="cmd-palette-results" id="cmdPaletteResults">
+                <!-- Navigation Group -->
+                <div class="cmd-group-title">Navigation &amp; Operations</div>
+                <a href="{{ url_for('dashboard.index') }}" class="cmd-item active" data-keywords="dashboard home metrics sales analytics velocity gd g d">
+                    <div class="d-flex align-items-center">
+                        <div class="cmd-item-icon"><i class="fas fa-gauge-high"></i></div>
+                        <div>
+                            <div class="fw-bold small mb-0">Executive Dashboard</div>
+                            <div class="text-muted" style="font-size:0.72rem;">Overview, sales velocity, KPIs</div>
+                        </div>
+                    </div>
+                    <kbd class="kbd-badge">G D</kbd>
+                </a>
+                <a href="{{ url_for('billing.new') }}" class="cmd-item" data-keywords="billing pos new sale invoice cash checkout register gb g b">
+                    <div class="d-flex align-items-center">
+                        <div class="cmd-item-icon" style="background:rgba(0,137,123,0.12); color:#00897b;"><i class="fas fa-cash-register"></i></div>
+                        <div>
+                            <div class="fw-bold small mb-0">New POS Invoice</div>
+                            <div class="text-muted" style="font-size:0.72rem;">Fast checkout register</div>
+                        </div>
+                    </div>
+                    <kbd class="kbd-badge">G B</kbd>
+                </a>
+                <a href="{{ url_for('products.list') }}" class="cmd-item" data-keywords="products catalog items sku stock price gp g p">
+                    <div class="d-flex align-items-center">
+                        <div class="cmd-item-icon" style="background:rgba(26,35,126,0.12); color:#1a237e;"><i class="fas fa-boxes-stacked"></i></div>
+                        <div>
+                            <div class="fw-bold small mb-0">Product Catalog</div>
+                            <div class="text-muted" style="font-size:0.72rem;">SKU database and pricing tiers</div>
+                        </div>
+                    </div>
+                    <kbd class="kbd-badge">G P</kbd>
+                </a>
+                <a href="{{ url_for('inventory.list') }}" class="cmd-item" data-keywords="inventory stock valuation buffer reserves balance gi g i">
+                    <div class="d-flex align-items-center">
+                        <div class="cmd-item-icon"><i class="fas fa-warehouse"></i></div>
+                        <div>
+                            <div class="fw-bold small mb-0">Inventory Balances</div>
+                            <div class="text-muted" style="font-size:0.72rem;">Stock quantities and asset valuation</div>
+                        </div>
+                    </div>
+                    <kbd class="kbd-badge">G I</kbd>
+                </a>
+                <a href="{{ url_for('inventory.alerts') }}" class="cmd-item" data-keywords="alerts low stock restock warning depleted safe limit ga g a">
+                    <div class="d-flex align-items-center">
+                        <div class="cmd-item-icon" style="background:rgba(220,53,69,0.12); color:#dc2626;"><i class="fas fa-triangle-exclamation"></i></div>
+                        <div>
+                            <div class="fw-bold small mb-0">Restock Hub &amp; Alerts</div>
+                            <div class="text-muted" style="font-size:0.72rem;">Items below safe buffer limit</div>
+                        </div>
+                    </div>
+                    <kbd class="kbd-badge">G A</kbd>
+                </a>
+                <a href="{{ url_for('reports.financial') }}" class="cmd-item" data-keywords="financial reports profit loss cogs revenue overhead margin">
+                    <div class="d-flex align-items-center">
+                        <div class="cmd-item-icon" style="background:rgba(13,148,136,0.12); color:#0d9488;"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <div>
+                            <div class="fw-bold small mb-0">Profit &amp; Loss Statement</div>
+                            <div class="text-muted" style="font-size:0.72rem;">Revenues, COGS, and audited net profit</div>
+                        </div>
+                    </div>
+                    <kbd class="kbd-badge">G R</kbd>
+                </a>
+
+                <!-- Store Switcher Group -->
+                <div class="cmd-group-title">Multi-Tenant Store Switcher</div>
+                <div class="cmd-item" onclick="quickSwitchStore('STORE001')" data-keywords="store switch techmart electronics store001">
+                    <div class="d-flex align-items-center">
+                        <div class="cmd-item-icon text-teal"><i class="fas fa-laptop"></i></div>
+                        <div>
+                            <div class="fw-bold small mb-0">Switch to TechMart (STORE001)</div>
+                            <div class="text-muted" style="font-size:0.72rem;">Consumer Electronics &amp; IT Hub</div>
+                        </div>
+                    </div>
+                    <span class="badge bg-light text-muted border font-monospace">STORE001</span>
+                </div>
+                <div class="cmd-item" onclick="quickSwitchStore('GROCERY01')" data-keywords="store switch greenleaf grocery supermarket grocery01">
+                    <div class="d-flex align-items-center">
+                        <div class="cmd-item-icon text-success"><i class="fas fa-carrot"></i></div>
+                        <div>
+                            <div class="fw-bold small mb-0">Switch to GreenLeaf (GROCERY01)</div>
+                            <div class="text-muted" style="font-size:0.72rem;">Supermarket &amp; Grocery Organics</div>
+                        </div>
+                    </div>
+                    <span class="badge bg-light text-muted border font-monospace">GROCERY01</span>
+                </div>
+                <div class="cmd-item" onclick="quickSwitchStore('PHARMA01')" data-keywords="store switch careplus pharma healthcare pharma01">
+                    <div class="d-flex align-items-center">
+                        <div class="cmd-item-icon text-info"><i class="fas fa-capsules"></i></div>
+                        <div>
+                            <div class="fw-bold small mb-0">Switch to CarePlus (PHARMA01)</div>
+                            <div class="text-muted" style="font-size:0.72rem;">Pharmacy &amp; Healthcare Store</div>
+                        </div>
+                    </div>
+                    <span class="badge bg-light text-muted border font-monospace">PHARMA01</span>
+                </div>
+
+                <!-- Theme Group -->
+                <div class="cmd-group-title">System &amp; Preferences</div>
+                <div class="cmd-item" onclick="toggleTheme(); closeCommandPalette();" data-keywords="theme dark light mode color">
+                    <div class="d-flex align-items-center">
+                        <div class="cmd-item-icon"><i class="fas fa-circle-half-stroke"></i></div>
+                        <div>
+                            <div class="fw-bold small mb-0">Toggle Dark / Light Theme</div>
+                            <div class="text-muted" style="font-size:0.72rem;">Instant zero-FOUC theme switch</div>
+                        </div>
+                    </div>
+                    <kbd class="kbd-badge">T</kbd>
+                </div>
+            </div>
+            <div class="cmd-palette-footer">
+                <div>Navigation: <kbd class="kbd-badge">↑</kbd> <kbd class="kbd-badge">↓</kbd> &bull; Open: <kbd class="kbd-badge">↵</kbd></div>
+                <div>Dismiss: <kbd class="kbd-badge">ESC</kbd></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5.3 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom Application JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

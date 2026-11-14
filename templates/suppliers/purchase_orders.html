@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Orders &amp; Restocking &mdash; InventoryPro{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('suppliers.list') }}" class="text-muted">Suppliers</a></li>
+<li class="breadcrumb-item active text-dark">Purchase Orders</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+        <h1 class="h2 fw-bold mb-1 text-heading">
+            <i class="fas fa-truck-ramp-box me-2 text-teal"></i>Purchase Orders &amp; Inbound Restock
+        </h1>
+        <p class="text-muted mb-0 small">Create purchase orders, track vendor deliveries, and automatically replenish stock levels.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('suppliers.list') }}" class="btn btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
+            <i class="fas fa-building me-1"></i>Suppliers Directory
+        </a>
+        {% if current_user.is_authenticated and current_user.role in ['admin', 'manager'] %}
+        <button class="btn text-white fw-semibold rounded-pill px-3 py-2 btn-shimmer" style="background: linear-gradient(135deg, #00897b, #0d9488); box-shadow: 0 4px 14px rgba(0, 137, 123, 0.35);" data-bs-toggle="modal" data-bs-target="#createPOModal">
+            <i class="fas fa-plus me-1"></i>New Purchase Order
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Instant Search Filter -->
+<div class="card-modern mb-4 p-3">
+    <div class="input-group">
+        <span class="input-group-text bg-white border-end-0 text-muted ps-3"><i class="fas fa-search"></i></span>
+        <input type="text" class="form-control border-start-0 ps-2" placeholder="Instant search by PO # or Supplier Name..." data-table-search="poTable">
+    </div>
+</div>
+
+<!-- Purchase Orders Ledger -->
+<div class="card-modern">
+    <div class="card-modern-header">
+        <div>
+            <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-clipboard-list me-2 text-primary"></i>Purchase Orders Ledger</h6>
+            <small class="text-muted">Chronological order list and delivery statuses</small>
+        </div>
+        <span class="badge bg-light text-dark border px-3 py-1 rounded-pill small">
+            {{ purchase_orders|length }} Orders
+        </span>
+    </div>
+    <div class="p-0 table-responsive">
+        <table class="table-luxury" id="poTable">
+            <thead>
+                <tr>
+                    <th>PO Code</th>
+                    <th>Supplier</th>
+                    <th>Created Date</th>
+                    <th>Expected Delivery</th>
+                    <th class="text-end">Order Valuation</th>
+                    <th>Status</th>
+                    <th class="text-end">Workflow Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if purchase_orders %}
+                    {% for po in purchase_orders %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('suppliers.view_po', id=po.id) }}" class="fw-bold font-monospace text-primary text-decoration-none">
+                                #{{ po.po_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ po.supplier.name if po.supplier else 'Unknown Vendor' }}</div>
+                        </td>
+                        <td class="text-muted small">
+                            {{ po.created_at.strftime('%d %b %Y') if po.created_at else '' }}
+                        </td>
+                        <td class="text-muted small">
+                            {{ po.expected_delivery.strftime('%d %b %Y') if po.expected_delivery else '—' }}
+                        </td>
+                        <td class="text-end font-tabular fw-bold text-dark fs-6">
+                            ₹{{ "%.2f"|format(po.total) }}
+                        </td>
+                        <td>
+                            {% if po.status == 'pending' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-3 py-1 fw-bold">
+                                    <i class="fas fa-clock me-1"></i>Draft / Pending
+                                </span>
+                            {% elif po.status == 'ordered' %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1 fw-bold">
+                                    <i class="fas fa-paper-plane me-1"></i>Dispatched
+                                </span>
+                            {% elif po.status == 'delivered' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 fw-bold">
+                                    <i class="fas fa-check-double me-1"></i>Received &amp; Stocked
+                                </span>
+                            {% elif po.status == 'cancelled' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-1 fw-bold">
+                                    <i class="fas fa-ban me-1"></i>Cancelled
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-secondary border rounded-pill px-2 py-1">{{ po.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1 align-items-center">
+                                <a href="{{ url_for('suppliers.view_po', id=po.id) }}" class="btn btn-sm btn-outline-primary rounded-circle" style="width:32px; height:32px; padding:0; display:inline-flex; align-items:center; justify-content:center;" title="View Details">
+                                    <i class="fas fa-eye fa-xs"></i>
+                                </a>
+                                {% if current_user.is_authenticated and current_user.role in ['admin', 'manager'] %}
+                                    {% if po.status == 'pending' %}
+                                    <form action="{{ url_for('suppliers.update_po_status', id=po.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="status" value="ordered">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 small fw-semibold" title="Mark as Dispatched">
+                                            <i class="fas fa-paper-plane me-1"></i>Send
+                                        </button>
+                                    </form>
+                                    {% elif po.status == 'ordered' %}
+                                    <form action="{{ url_for('suppliers.update_po_status', id=po.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="status" value="delivered">
+                                        <button type="submit" class="btn btn-sm btn-success rounded-pill px-2 py-1 small fw-semibold" title="Receive Goods & Auto-Restock">
+                                            <i class="fas fa-truck-ramp-box me-1"></i>Receive &amp; Restock
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr class="no-filter">
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fas fa-clipboard-list fa-2x mb-2 d-block opacity-25"></i>
+                            No purchase orders created yet.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: Create Purchase Order -->
+<div class="modal fade" id="createPOModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('suppliers.create_po') }}" id="poForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header-luxury">
+                    <h5 class="modal-title">
+                        <i class="fas fa-truck-ramp-box text-teal"></i>Issue Inbound Purchase Order
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted text-uppercase">Supplier Vendor <span class="text-danger">*</span></label>
+                            <select class="form-select" name="supplier_id" required>
+                                <option value="">-- Choose Supplier --</option>
+                                {% for supplier in suppliers %}
+                                <option value="{{ supplier.id }}">{{ supplier.name }} ({{ supplier.contact_person or 'Vendor' }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted text-uppercase">Expected Inbound Delivery</label>
+                            <input type="date" class="form-control" name="expected_delivery">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-dark mb-0 small text-uppercase">Order Items &amp; Replenishment Qty</h6>
+                        <button type="button" class="btn btn-sm btn-outline-dark rounded-pill px-3" onclick="addPOItem()">
+                            <i class="fas fa-plus me-1"></i>Add Product
+                        </button>
+                    </div>
+
+                    <div class="table-responsive rounded-3 border mb-3">
+                        <table class="table-luxury" id="poItemsTable">
+                            <thead>
+                                <tr>
+                                    <th>Product Item</th>
+                                    <th class="text-center" style="width: 120px;">Restock Qty</th>
+                                    <th class="text-end" style="width: 140px;">Unit Cost (₹)</th>
+                                    <th class="text-end" style="width: 140px;">Total (₹)</th>
+                                    <th style="width: 40px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="poItemsBody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center p-3 rounded-3 bg-light border mb-3">
+                        <span class="fw-bold text-dark small text-uppercase">Total Estimated Inbound Cost</span>
+                        <span class="fs-5 fw-bold font-tabular text-success" id="poTotalDisplay">₹0.00</span>
+                    </div>
+
+                    <div>
+                        <label class="form-label fw-bold small text-muted text-uppercase">Logistics Notes / Special Instructions</label>
+                        <textarea class="form-control" name="notes" rows="2" placeholder="e.g. Standard freight shipment, batch certification required..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light p-3">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn text-white rounded-pill px-4 fw-semibold btn-shimmer" style="background: linear-gradient(135deg, #00897b, #0d9488);">
+                        <i class="fas fa-check me-1"></i>Generate Purchase Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let poItemCounter = 0;
+    const productsForPO = {{ products | tojson }};
+
+    function addPOItem() {
+        poItemCounter++;
+        const tbody = document.getElementById('poItemsBody');
+
+        let options = '<option value="">-- Select Product --</option>';
+        productsForPO.forEach(p => {
+            options += `<option value="${p.id}" data-cost="${p.cost_price}">${p.name} (${p.sku})</option>`;
+        });
+
+        const row = document.createElement('tr');
+        row.id = `poItem_${poItemCounter}`;
+        row.className = 'row-animated';
+        row.innerHTML = `
+            <td>
+                <select class="form-select form-select-sm" name="po_items[${poItemCounter}][product_id]" onchange="onPOProductChange(this, ${poItemCounter})" required>
+                    ${options}
+                </select>
+            </td>
+            <td class="text-center">
+                <input type="number" class="form-control form-control-sm text-center font-tabular" name="po_items[${poItemCounter}][quantity]"
+                       id="poQty_${poItemCounter}" value="10" min="1" oninput="calcPORow(${poItemCounter})" required>
+            </td>
+            <td class="text-end">
+                <input type="number" class="form-control form-control-sm text-end font-tabular" name="po_items[${poItemCounter}][cost_price]"
+                       id="poCost_${poItemCounter}" value="0.00" step="0.01" oninput="calcPORow(${poItemCounter})">
+            </td>
+            <td class="text-end fw-bold font-tabular text-dark" id="poRowTotal_${poItemCounter}">₹0.00</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger rounded-circle" style="width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center;" onclick="removePOItem(${poItemCounter})">
+                    <i class="fas fa-trash fa-xs"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    }
+
+    function onPOProductChange(select, rowId) {
+        const opt = select.options[select.selectedIndex];
+        document.getElementById(`poCost_${rowId}`).value = parseFloat(opt.dataset.cost || 0).toFixed(2);
+        calcPORow(rowId);
+    }
+
+    function calcPORow(rowId) {
+        const qty = parseFloat(document.getElementById(`poQty_${rowId}`).value) || 0;
+        const cost = parseFloat(document.getElementById(`poCost_${rowId}`).value) || 0;
+        const total = qty * cost;
+        document.getElementById(`poRowTotal_${rowId}`).textContent = `₹${total.toFixed(2)}`;
+        calcPOTotal();
+    }
+
+    function removePOItem(rowId) {
+        document.getElementById(`poItem_${rowId}`)?.remove();
+        calcPOTotal();
+    }
+
+    function calcPOTotal() {
+        let total = 0;
+        document.querySelectorAll('[id^="poRowTotal_"]').forEach(el => {
+            total += parseFloat(el.textContent.replace('₹', '')) || 0;
+        });
+        document.getElementById('poTotalDisplay').textContent = `₹${total.toFixed(2)}`;
+    }
+
+    // Initialize first row when modal is shown
+    document.getElementById('createPOModal').addEventListener('shown.bs.modal', function() {
+        if (document.getElementById('poItemsBody').children.length === 0) {
+            addPOItem();
+        }
+    });
+</script>
+{% endblock %}
